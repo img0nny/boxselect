@@ -21,6 +21,10 @@
         .btn-glow { box-shadow: 0 0 20px rgba(236, 72, 153, 0.4); }
         .result-card { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
         .cert-box { background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.2); }
+        
+        /* 스크롤바 숨기기 (관리자 리스트용) */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="relative">
@@ -34,9 +38,9 @@
         LIVE 동기화 중
     </div>
 
-    <!-- 관리자용 리셋 버튼 -->
-    <button onclick="window.requestReset()" class="fixed bottom-2 right-2 text-[10px] text-slate-500 bg-slate-800/50 px-2 py-1 rounded opacity-30 hover:opacity-100 z-50">
-        관리자 초기화
+    <!-- 관리자용 입장 버튼 -->
+    <button onclick="window.enterAdminMode()" class="fixed bottom-2 right-2 text-[10px] text-slate-500 bg-slate-800/50 px-2 py-1 rounded opacity-30 hover:opacity-100 z-50 transition-all">
+        관리자 모드
     </button>
 
     <div id="app" class="w-full max-w-md mx-auto p-6 flex-1 flex flex-col pt-12">
@@ -74,6 +78,7 @@
         };
 
         window.boxesData = null;
+        window.winnersData = []; // 당첨자 명단 관리용 배열
         const appDiv = document.getElementById('app');
 
         // 서버 감시 및 화면 제어
@@ -81,17 +86,22 @@
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 window.boxesData = data.boxes;
+                window.winnersData = data.winners || []; // 서버에서 당첨자 명단 가져오기
                 
                 const serverResetTime = data.lastReset || 0;
                 const localResetTime = localStorage.getItem('lastResetTime') || 0;
                 if (serverResetTime > localResetTime) {
                     localStorage.removeItem('myDrawResult');
+                    localStorage.removeItem('myNickname'); // 닉네임도 함께 초기화
                     localStorage.setItem('lastResetTime', serverResetTime);
                 }
                 
-                // 추첨 완료 여부 확인 후 자동 페이지 이동
+                // 현재 화면 상태 유지 및 자동 페이지 이동
                 const savedResult = localStorage.getItem('myDrawResult');
-                if (savedResult) {
+                
+                if (window.currentView === 'admin') {
+                    window.renderAdminScreen(); // 관리자 화면일 경우 리스트 실시간 새로고침
+                } else if (savedResult) {
                     const result = JSON.parse(savedResult);
                     window.renderResultScreen(result.boxTitle, result.prize, true);
                 } else if (!window.currentView || window.currentView === 'loading' || window.currentView === 'home') {
@@ -102,13 +112,17 @@
                     window.renderDrawScreen(window.selectedBoxId);
                 }
             } else {
-                setDoc(docRef, { boxes: initialBoxes, lastReset: new Date().getTime() });
+                // 문서 최초 생성 시 winners 빈 배열 추가
+                setDoc(docRef, { boxes: initialBoxes, winners: [], lastReset: new Date().getTime() });
             }
         });
 
-        // 1. 홈 화면
+        // 1. 홈 화면 (닉네임 입력 추가)
         window.renderHomeScreen = function() {
             window.currentView = 'home';
+            // 이전에 입력한 닉네임이 있다면 불러오기
+            const savedNick = localStorage.getItem('myNickname') || '';
+
             appDiv.innerHTML = `
                 <div class="flex-1 flex flex-col justify-center items-center text-center fade-in">
                     <div class="mb-6 text-6xl">🎳</div>
@@ -116,7 +130,13 @@
                     <h1 class="text-4xl md:text-5xl title-font text-white mb-8 leading-tight">
                         서울더리본치과<br>볼링경기 상품추첨
                     </h1>
-                    <button onclick="window.renderTeamSelectScreen()" class="btn-glow bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-4 px-12 rounded-full text-xl hover:scale-105 active:scale-95 transition-all">
+                    
+                    <!-- 닉네임 입력 폼 -->
+                    <div class="w-full max-w-[280px] mb-6">
+                        <input type="text" id="nickInput" value="${savedNick}" placeholder="본인의 이름을 입력하세요" class="w-full bg-slate-800/80 border border-slate-600 text-white rounded-xl px-4 py-3 text-center text-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 placeholder-slate-500 transition-all font-bold">
+                    </div>
+
+                    <button onclick="window.checkNicknameAndStart()" class="btn-glow bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-4 px-12 rounded-full text-xl hover:scale-105 active:scale-95 transition-all">
                         추첨 시작하기!
                     </button>
                     <p class="mt-8 text-slate-500 text-sm italic">"과연 금손 타이틀을 거머쥘 주인공은?"</p>
@@ -124,9 +144,24 @@
             `;
         };
 
+        // 1-1. 닉네임 검증 및 팀 선택 화면 이동
+        window.checkNicknameAndStart = function() {
+            const nick = document.getElementById('nickInput').value.trim();
+            if (!nick) {
+                alert("이름(닉네임)을 반드시 입력해주세요!");
+                document.getElementById('nickInput').focus();
+                return;
+            }
+            // 닉네임 로컬에 저장
+            localStorage.setItem('myNickname', nick);
+            window.renderTeamSelectScreen();
+        };
+
         // 2. 팀 선택 화면
         window.renderTeamSelectScreen = function() {
             window.currentView = 'team_select';
+            const myNick = localStorage.getItem('myNickname');
+
             let html = `
                 <div class="fade-in pb-10">
                     <button onclick="window.renderHomeScreen()" class="flex items-center gap-2 bg-slate-800/80 text-slate-400 px-4 py-2 rounded-full border border-slate-700 mb-8 transition-all hover:text-white">
@@ -136,7 +171,7 @@
                         <span class="text-sm font-bold font-sans">메인으로</span>
                     </button>
                     <h2 class="text-3xl title-font text-white mb-2 tracking-wide">팀을 골라주세요.</h2>
-                    <p class="text-slate-400 text-sm mb-8 font-medium">본인 팀의 전용 카드를 터치하세요.</p>
+                    <p class="text-slate-400 text-sm mb-8 font-medium"><span class="text-pink-400 font-bold">${myNick}</span>님, 본인 팀의 카드를 터치하세요.</p>
                     <div class="grid grid-cols-1 gap-4">
             `;
             for (let i = 1; i <= 4; i++) {
@@ -144,7 +179,6 @@
                 const count = box.prizes.length;
                 const isEmpty = count === 0;
                 
-                // 🛡️ [수정된 방어 로직] 띄어쓰기 유지, 숫자 4 보존
                 const cleanTitle = box.title.replace(/🥇|🥈|🥉|🏅|4️⃣|😅|📦/g, '').trim(); 
                 const fallbackEmoji = box.id === 1 ? '🥇' : box.id === 2 ? '🥈' : box.id === 3 ? '🥉' : '😅';
                 const displayEmoji = box.emoji || fallbackEmoji;
@@ -173,7 +207,6 @@
             window.selectedBoxId = boxId;
             const box = window.boxesData[boxId];
             
-            // 🛡️ [수정된 방어 로직] 띄어쓰기 유지, 숫자 4 보존
             const cleanTitle = box.title.replace(/🥇|🥈|🥉|🏅|4️⃣|😅|📦/g, '').trim(); 
             const fallbackEmoji = box.id === 1 ? '🥇' : box.id === 2 ? '🥈' : box.id === 3 ? '🥉' : '😅';
             const displayEmoji = box.emoji || fallbackEmoji;
@@ -196,27 +229,47 @@
             `;
         };
 
-        // 4. 추첨 로직
+        // 4. 추첨 로직 (트랜잭션 + 당첨자 명단 서버 기록 추가)
         window.executeDraw = async function(boxId) {
             const boxElement = document.getElementById('drawBox');
             if(boxElement.classList.contains('executing')) return;
             boxElement.classList.add('executing');
+            
+            const myNick = localStorage.getItem('myNickname') || '이름없음';
+
             try {
                 const selectedPrize = await runTransaction(db, async (transaction) => {
                     const sfDoc = await transaction.get(docRef);
                     let latestData = sfDoc.data().boxes;
+                    let winnersList = sfDoc.data().winners || [];
+                    
                     let currentPrizes = latestData[boxId].prizes;
                     if (currentPrizes.length === 0) throw "EMPTY";
+                    
                     const randomIndex = Math.floor(Math.random() * currentPrizes.length);
                     const prize = currentPrizes[randomIndex];
                     currentPrizes.splice(randomIndex, 1);
-                    transaction.update(docRef, { boxes: latestData });
+                    
+                    // 관리자 페이지 확인용 당첨자 리스트에 추가
+                    const cleanTitle = latestData[boxId].title.replace(/🥇|🥈|🥉|🏅|4️⃣|😅|📦/g, '').trim(); 
+                    winnersList.unshift({ // 최신순 정렬을 위해 unshift 사용
+                        nickname: myNick,
+                        boxTitle: cleanTitle,
+                        prizeName: prize.name,
+                        prizeIcon: prize.icon,
+                        timestamp: new Date().getTime()
+                    });
+
+                    // DB 최종 덮어쓰기
+                    transaction.update(docRef, { boxes: latestData, winners: winnersList });
                     return prize;
                 });
+
                 setTimeout(() => {
                     localStorage.setItem('myDrawResult', JSON.stringify({ boxTitle: window.boxesData[boxId].title, prize: selectedPrize }));
                     window.renderResultScreen(window.boxesData[boxId].title, selectedPrize, false);
                 }, 800);
+
             } catch (e) {
                 boxElement.classList.remove('executing');
                 if (e === "EMPTY") { alert("방금 전 상품이 모두 소진되었습니다."); window.renderTeamSelectScreen(); }
@@ -227,11 +280,11 @@
         // 5. 결과 확인 화면
         window.renderResultScreen = function(boxTitle, selectedPrize, isAlreadyDrawn) {
             window.currentView = 'result';
+            const myNick = localStorage.getItem('myNickname') || '고객';
             let resultColor = 'from-slate-700 to-slate-800';
             if (selectedPrize.type === 'jackpot') resultColor = 'from-pink-500 to-rose-500';
             else if (selectedPrize.type === 'good') resultColor = 'from-blue-500 to-indigo-500';
 
-            // 결과창에서도 띄어쓰기와 깔끔한 이름 출력을 위해 방어로직 동일 적용
             const cleanTitle = boxTitle.replace(/🥇|🥈|🥉|🏅|4️⃣|😅|📦/g, '').trim(); 
 
             appDiv.innerHTML = `
@@ -249,7 +302,7 @@
                     <div class="cert-box w-full p-5 rounded-2xl flex flex-col items-center gap-3 fade-in shadow-inner">
                         <div class="flex items-center gap-2">
                             <span class="text-2xl">📸</span>
-                            <p class="text-lg font-black text-white comic-font">수령 인증 가이드</p>
+                            <p class="text-lg font-black text-white comic-font"><span class="text-pink-400">${myNick}</span>님 수령 가이드</p>
                         </div>
                         <div class="h-px bg-white/10 w-full mb-1"></div>
                         <p class="text-slate-300 text-sm leading-relaxed break-keep font-medium">
@@ -267,18 +320,87 @@
             `;
         };
 
-        // 관리자용 초기화 로직
-        window.requestReset = async function() {
+        // ============================================
+        // 🛠️ 관리자 모드 전용 로직
+        // ============================================
+
+        window.enterAdminMode = function() {
             const pw = prompt("관리자 비밀번호를 입력하세요.");
             if (pw === "0000") {
-                if(confirm("모든 데이터를 초기화하시겠습니까? (서버 및 모든 참여자 기록)")) {
-                    const newResetTime = new Date().getTime();
-                    await setDoc(docRef, { boxes: initialBoxes, lastReset: newResetTime });
-                    alert("시스템이 초기화되었습니다.");
-                    location.reload();
-                }
-            } else if (pw !== null) { alert("비밀번호 불일치"); }
+                window.renderAdminScreen();
+            } else if (pw !== null) { 
+                alert("비밀번호 불일치"); 
+            }
         };
+
+        window.renderAdminScreen = function() {
+            window.currentView = 'admin';
+            
+            // 당첨 리스트 HTML 생성
+            let listHTML = '';
+            if (window.winnersData.length === 0) {
+                listHTML = `<div class="text-slate-500 text-center py-8 text-sm">아직 추첨을 완료한 참여자가 없습니다.</div>`;
+            } else {
+                window.winnersData.forEach((winner, idx) => {
+                    const timeObj = new Date(winner.timestamp);
+                    const timeStr = `${timeObj.getHours().toString().padStart(2, '0')}:${timeObj.getMinutes().toString().padStart(2, '0')}`;
+                    
+                    listHTML += `
+                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+                            <div class="flex flex-col text-left">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-bold text-white text-sm">${winner.nickname}</span>
+                                    <span class="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">${winner.boxTitle}</span>
+                                </div>
+                                <div class="text-pink-400 font-bold text-xs flex items-center gap-1">
+                                    <span>${winner.prizeIcon}</span> ${winner.prizeName}
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-500">${timeStr}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            appDiv.innerHTML = `
+                <div class="flex-1 flex flex-col w-full fade-in pb-10">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl title-font text-white flex items-center gap-2"><span class="text-3xl">⚙️</span> 관리자 대시보드</h2>
+                        <button onclick="window.renderHomeScreen()" class="text-slate-400 text-sm hover:text-white bg-slate-800 px-3 py-1 rounded-full border border-slate-700">닫기 ✖</button>
+                    </div>
+
+                    <!-- 당첨자 실시간 현황 박스 -->
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex-1 flex flex-col">
+                        <div class="flex justify-between items-end mb-4 border-b border-slate-700 pb-3">
+                            <h3 class="text-pink-400 font-bold comic-font text-lg">🎁 당첨 내역 확인</h3>
+                            <span class="text-xs font-bold bg-pink-500/20 text-pink-300 px-2 py-1 rounded-md">총 ${window.winnersData.length}명</span>
+                        </div>
+                        
+                        <!-- 스크롤 가능한 리스트 영역 -->
+                        <div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-2 max-h-[50vh]">
+                            ${listHTML}
+                        </div>
+                    </div>
+
+                    <!-- 관리자용 초기화 로직 -->
+                    <button onclick="window.resetData()" class="w-full bg-red-500/10 text-red-400 border border-red-500/30 py-4 rounded-xl font-bold hover:bg-red-500 hover:text-white transition-all shadow-lg flex justify-center items-center gap-2">
+                        <span>🚨</span> 전체 데이터 초기화
+                    </button>
+                    <p class="text-center text-slate-500 text-[10px] mt-3">초기화 시 서버 수량과 참석자의 접속 기록이 모두 삭제됩니다.</p>
+                </div>
+            `;
+        };
+
+        window.resetData = async function() {
+            if(confirm("🚨 경고: 모든 데이터(상품 수량 및 당첨 내역)를 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) {
+                const newResetTime = new Date().getTime();
+                // 윈도우.winners를 포함하여 서버 데이터 완전히 빈 상태로 초기화
+                await setDoc(docRef, { boxes: initialBoxes, winners: [], lastReset: newResetTime });
+                alert("시스템이 완벽하게 초기화되었습니다.");
+                window.renderHomeScreen();
+            }
+        };
+
     </script>
 </body>
 </html>
