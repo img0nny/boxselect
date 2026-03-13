@@ -17,7 +17,7 @@
         .shake { animation: shake 0.5s infinite; }
         @keyframes shake { 0%, 50%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
         
-        /* 버튼 및 박스 효과 */
+        /* 효과 스타일 */
         .btn-glow { box-shadow: 0 0 20px rgba(236, 72, 153, 0.4); }
         .result-card { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
         .cert-box { background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.2); }
@@ -34,7 +34,7 @@
         LIVE 동기화 중
     </div>
 
-    <!-- 진행자용 초기화 버튼 -->
+    <!-- 관리자용 리셋 버튼 -->
     <button onclick="window.requestReset()" class="fixed bottom-2 right-2 text-[10px] text-slate-500 bg-slate-800/50 px-2 py-1 rounded opacity-30 hover:opacity-100 z-50">
         관리자 초기화
     </button>
@@ -43,7 +43,7 @@
         <!-- 서버 연결 로딩 화면 -->
         <div id="loading-view" class="flex-1 flex justify-center items-center text-slate-400 text-lg font-bold flex-col gap-4">
             <div class="text-5xl animate-bounce">🎳</div>
-            <p class="animate-pulse text-sm font-medium">데이터를 동기화 중입니다...</p>
+            <p class="animate-pulse text-sm font-medium text-slate-400">데이터를 동기화 중입니다...</p>
         </div>
     </div>
 
@@ -51,7 +51,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Firebase 설정 (전달해주신 코드 유지)
+        // 사용자 Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyAlrDE_xgT6VBwEQ7AtqEkPfIng6tuK38g",
             authDomain: "img0nny.firebaseapp.com",
@@ -65,23 +65,23 @@
         const db = getFirestore(app);
         const docRef = doc(db, "bowling_event", "prizes");
 
+        // 초기 박스 세팅
         const initialBoxes = {
-            1: { id: 1, title: "🥇 1등 팀 골드 박스", colorClass: "bg-yellow-500", textClass: "text-yellow-900", prizes: [{ name: "올리브영 5만원", icon: "💄", type: "jackpot" }, { name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
-            2: { id: 2, title: "🥈 2등 팀 실버 박스", colorClass: "bg-slate-300", textClass: "text-slate-800", prizes: [{ name: "올리브영 3만원", icon: "🌿", type: "good" }, { name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
-            3: { id: 3, title: "🥉 3등 팀 브론즈 박스", colorClass: "bg-amber-600", textClass: "text-white", prizes: [{ name: "올리브영 3만원", icon: "🌿", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
-            4: { id: 4, title: "4️⃣ 4등 팀 그린 박스", colorClass: "bg-emerald-500", textClass: "text-white", prizes: [{ name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] }
+            1: { id: 1, title: "1등 팀 골드 박스", emoji: "🥇", colorClass: "bg-yellow-500", textClass: "text-yellow-900", prizes: [{ name: "올리브영 5만원", icon: "💄", type: "jackpot" }, { name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
+            2: { id: 2, title: "2등 팀 실버 박스", emoji: "🥈", colorClass: "bg-slate-300", textClass: "text-slate-800", prizes: [{ name: "올리브영 3만원", icon: "🌿", type: "good" }, { name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
+            3: { id: 3, title: "3등 팀 브론즈 박스", emoji: "🥉", colorClass: "bg-amber-600", textClass: "text-white", prizes: [{ name: "올리브영 3만원", icon: "🌿", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] },
+            4: { id: 4, title: "4등 팀 그린 박스", emoji: "😅", colorClass: "bg-emerald-500", textClass: "text-white", prizes: [{ name: "배달의민족 3만원", icon: "🍗", type: "good" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }, { name: "스타벅스 1만원", icon: "☕", type: "normal" }] }
         };
 
         window.boxesData = null;
         const appDiv = document.getElementById('app');
 
-        // [핵심 로직] 실시간 동기화 감시 및 재접속 처리
+        // 서버 감시 및 화면 제어
         onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 window.boxesData = data.boxes;
                 
-                // 관리자 초기화 시간 체크
                 const serverResetTime = data.lastReset || 0;
                 const localResetTime = localStorage.getItem('lastResetTime') || 0;
                 if (serverResetTime > localResetTime) {
@@ -89,7 +89,7 @@
                     localStorage.setItem('lastResetTime', serverResetTime);
                 }
                 
-                // 추첨 결과 여부에 따른 자동 화면 전환
+                // 추첨 완료 여부 확인 후 자동 페이지 이동
                 const savedResult = localStorage.getItem('myDrawResult');
                 if (savedResult) {
                     const result = JSON.parse(savedResult);
@@ -106,7 +106,7 @@
             }
         });
 
-        // 1. 메인 홈 화면
+        // 1. 홈 화면
         window.renderHomeScreen = function() {
             window.currentView = 'home';
             appDiv.innerHTML = `
@@ -136,24 +136,30 @@
                         <span class="text-sm font-bold font-sans">메인으로</span>
                     </button>
                     <h2 class="text-3xl title-font text-white mb-2 tracking-wide">팀을 골라주세요.</h2>
-                    <p class="text-slate-400 text-sm mb-8 font-medium">본인 팀의 상자를 터치하여 뽑기를 진행합니다.</p>
+                    <p class="text-slate-400 text-sm mb-8 font-medium">본인 팀의 카드를 터치하세요.</p>
                     <div class="grid grid-cols-1 gap-4">
             `;
             for (let i = 1; i <= 4; i++) {
                 const box = window.boxesData[i];
                 const count = box.prizes.length;
                 const isEmpty = count === 0;
+                
+                // 🛡️ [방어 로직] 서버에 구형 데이터가 남아있어도 화면이 깨지지 않게 처리
+                const cleanTitle = box.title.replace(/[🥇🥈🥉🏅4️⃣😅📦\s]/g, '').trim(); 
+                const fallbackEmoji = box.id === 1 ? '🥇' : box.id === 2 ? '🥈' : box.id === 3 ? '🥉' : '😅';
+                const displayEmoji = box.emoji || fallbackEmoji;
+
                 html += `
                     <div onclick="${isEmpty ? '' : `window.renderDrawScreen(${i})`}" 
                          class="relative rounded-2xl p-6 shadow-xl border border-white/5 transition-all ${isEmpty ? 'bg-slate-800/40 opacity-40 grayscale' : box.colorClass + ' cursor-pointer hover:scale-[1.02] active:scale-95'}">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h2 class="text-2xl font-black ${isEmpty ? 'text-slate-500' : box.textClass} comic-font mb-1">${box.title}</h2>
+                                <h2 class="text-2xl font-black ${isEmpty ? 'text-slate-500' : box.textClass} comic-font mb-1">${cleanTitle}</h2>
                                 <p class="${isEmpty ? 'text-slate-600' : box.textClass} opacity-80 text-xs font-bold uppercase tracking-widest font-sans">
                                     남은 수량 : ${count} / 4
                                 </p>
                             </div>
-                            <div class="text-4xl">📦</div>
+                            <div class="text-5xl drop-shadow-sm">${displayEmoji}</div>
                         </div>
                     </div>
                 `;
@@ -161,11 +167,17 @@
             appDiv.innerHTML = html + `</div></div>`;
         };
 
-        // 3. 뽑기 진행 화면
+        // 3. 뽑기 화면
         window.renderDrawScreen = function(boxId) {
             window.currentView = 'draw';
             window.selectedBoxId = boxId;
             const box = window.boxesData[boxId];
+            
+            // 🛡️ [방어 로직] 서버 구형 데이터 방어
+            const cleanTitle = box.title.replace(/[🥇🥈🥉🏅4️⃣😅📦\s]/g, '').trim(); 
+            const fallbackEmoji = box.id === 1 ? '🥇' : box.id === 2 ? '🥈' : box.id === 3 ? '🥉' : '😅';
+            const displayEmoji = box.emoji || fallbackEmoji;
+
             appDiv.innerHTML = `
                 <div class="flex-1 flex flex-col justify-center items-center text-center fade-in">
                     <button onclick="window.renderTeamSelectScreen()" class="absolute top-8 left-6 flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-700 transition-all text-sm font-bold shadow-lg font-sans">
@@ -174,17 +186,17 @@
                         </svg>
                         팀 다시 고르기
                     </button>
-                    <h2 class="text-2xl title-font ${box.colorClass.replace('bg-', 'text-')} mb-8 drop-shadow-md">${box.title}</h2>
+                    <h2 class="text-2xl title-font ${box.colorClass.replace('bg-', 'text-')} mb-8 drop-shadow-md">${displayEmoji} ${cleanTitle}</h2>
                     <div id="drawBox" class="text-[120px] mb-12 cursor-pointer drop-shadow-2xl transition-transform hover:scale-110 active:scale-90 shake" onclick="window.executeDraw(${boxId})">🎁</div>
                     <div class="animate-pulse">
-                        <p class="text-2xl font-black text-white comic-font mb-2">상자를 터치하세요!</p>
-                        <p class="text-sm text-pink-400 font-bold">대박 상품이 기다리고 있습니다!</p>
+                        <p class="text-2xl font-black text-white comic-font mb-2 text-pink-400">상자를 터치하세요!</p>
+                        <p class="text-sm text-slate-400 font-bold tracking-tight">좋은 상품이 나오기를 기원합니다!</p>
                     </div>
                 </div>
             `;
         };
 
-        // 4. 추첨 실행
+        // 4. 추첨 로직
         window.executeDraw = async function(boxId) {
             const boxElement = document.getElementById('drawBox');
             if(boxElement.classList.contains('executing')) return;
@@ -207,12 +219,12 @@
                 }, 800);
             } catch (e) {
                 boxElement.classList.remove('executing');
-                if (e === "EMPTY") { alert("상품이 소진되었습니다."); window.renderTeamSelectScreen(); }
-                else { alert("통신 오류가 발생했습니다."); }
+                if (e === "EMPTY") { alert("방금 전 상품이 모두 소진되었습니다."); window.renderTeamSelectScreen(); }
+                else { alert("통신 오류가 발생했습니다. 잠시 후 시도하세요."); }
             }
         };
 
-        // 5. 결과 확인 화면 (시각화 업그레이드)
+        // 5. 결과 확인 화면
         window.renderResultScreen = function(boxTitle, selectedPrize, isAlreadyDrawn) {
             window.currentView = 'result';
             let resultColor = 'from-slate-700 to-slate-800';
@@ -221,9 +233,8 @@
 
             appDiv.innerHTML = `
                 <div class="flex-1 flex flex-col justify-center items-center text-center fade-in px-4 py-8">
-                    <p class="text-yellow-400 font-bold text-xl mb-4 comic-font tracking-widest">${isAlreadyDrawn ? "기존 당첨 결과" : "🎉 축하합니다! 🎉"}</p>
+                    <p class="text-yellow-400 font-bold text-xl mb-4 comic-font tracking-widest">${isAlreadyDrawn ? "나의 당첨 결과" : "🎉 축하합니다! 🎉"}</p>
                     
-                    <!-- 당첨 카드 -->
                     <div class="bg-gradient-to-br ${resultColor} w-full py-10 rounded-3xl shadow-2xl pop-up border border-white/20 relative overflow-hidden mb-8 result-card">
                         <div class="absolute inset-0 bg-white/10 opacity-40"></div>
                         <div class="text-[100px] mb-4 relative z-10 drop-shadow-xl animate-bounce">${selectedPrize.icon}</div>
@@ -231,7 +242,7 @@
                         <p class="text-white/70 font-bold text-sm relative z-10 opacity-90">${boxTitle}</p>
                     </div>
 
-                    <!-- [업그레이드] 인증 안내 영역 -->
+                    <!-- 인증 가이드 박스 -->
                     <div class="cert-box w-full p-5 rounded-2xl flex flex-col items-center gap-3 fade-in shadow-inner">
                         <div class="flex items-center gap-2">
                             <span class="text-2xl">📸</span>
@@ -245,7 +256,7 @@
                         </p>
                         <div class="mt-2 flex items-center justify-center gap-1 bg-white/10 px-4 py-2 rounded-full border border-white/10">
                             <span class="text-pink-400">✨</span>
-                            <span class="text-xs font-bold text-slate-400 font-sans tracking-tight">인증 후에는 선물이 지급됩니다!</span>
+                            <span class="text-xs font-bold text-slate-400 font-sans tracking-tight uppercase">Present For You</span>
                             <span class="text-pink-400">✨</span>
                         </div>
                     </div>
@@ -253,14 +264,14 @@
             `;
         };
 
-        // 관리자용 초기화
+        // 관리자용 초기화 로직
         window.requestReset = async function() {
             const pw = prompt("관리자 비밀번호를 입력하세요.");
             if (pw === "0000") {
-                if(confirm("모든 서버 데이터와 모든 참가자의 추첨 기록을 초기화하시겠습니까?")) {
+                if(confirm("모든 데이터를 초기화하시겠습니까? (서버 및 모든 참여자 기록)")) {
                     const newResetTime = new Date().getTime();
                     await setDoc(docRef, { boxes: initialBoxes, lastReset: newResetTime });
-                    alert("초기화 완료!");
+                    alert("시스템이 초기화되었습니다.");
                     location.reload();
                 }
             } else if (pw !== null) { alert("비밀번호 불일치"); }
